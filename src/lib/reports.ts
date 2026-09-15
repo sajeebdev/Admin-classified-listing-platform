@@ -1,4 +1,4 @@
-import type { ReportStatus } from "@classified-marketplace/shared";
+import type { ReportStatus } from "../shared";
 import { api, toQueryString } from "./api";
 import type { AdminReport, PaginatedResult } from "./types";
 

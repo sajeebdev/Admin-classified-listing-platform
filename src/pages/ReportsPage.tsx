@@ -1,4 +1,4 @@
-import { ReportStatus } from "@classified-marketplace/shared";
+import { ReportStatus } from "../shared";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge } from "../components/Badge";

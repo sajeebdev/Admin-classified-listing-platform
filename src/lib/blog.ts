@@ -1,4 +1,4 @@
-import type { BlogPostStatus } from "@classified-marketplace/shared";
+import type { BlogPostStatus } from "../shared";
 import { api, toQueryString } from "./api";
 import type { AdminBlogPost, PaginatedResult } from "./types";
 

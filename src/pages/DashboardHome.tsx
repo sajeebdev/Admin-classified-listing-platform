@@ -1,4 +1,4 @@
-import { ListingStatus, ReportStatus } from "@classified-marketplace/shared";
+import { ListingStatus, ReportStatus } from "../shared";
 import { useEffect, useState } from "react";
 import { listAdminListings } from "../lib/listings";
 import { listAdminReports } from "../lib/reports";

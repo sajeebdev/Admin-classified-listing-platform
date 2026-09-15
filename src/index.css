@@ -3,7 +3,7 @@
 /*
  * Styles a listing's sanitized rich-text `description` (see
  * `ListingDetailPage.tsx` and `sanitizeListingDescriptionHtml` in
- * `@classified-marketplace/shared`) — the same convention the public
+ * `./shared`) — the same convention the public
  * frontend's `.prose-blog` class already uses for the exact same purpose
  * (Tailwind's Preflight reset strips default heading/list styling, and
  * this project has no `@tailwindcss/typography` plugin). Scoped to only

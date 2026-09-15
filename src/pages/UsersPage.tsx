@@ -1,4 +1,4 @@
-import { UserRole } from "@classified-marketplace/shared";
+import { UserRole } from "../shared";
 import { useEffect, useState } from "react";
 import { ActiveBadge, Badge } from "../components/Badge";
 import { ConfirmDialog } from "../components/ConfirmDialog";

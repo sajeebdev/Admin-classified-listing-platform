@@ -1,4 +1,4 @@
-import { UserRole } from "@classified-marketplace/shared";
+import { UserRole } from "./shared";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { ProtectedRoute } from "./components/ProtectedRoute";

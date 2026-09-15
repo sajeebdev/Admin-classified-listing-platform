@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { UserRole } from "@classified-marketplace/shared";
+import { UserRole } from "../shared";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [

@@ -1,4 +1,4 @@
-import { AdPlacement, AdStatus } from "@classified-marketplace/shared";
+import { AdPlacement, AdStatus } from "../shared";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { AdStatusBadge } from "../components/Badge";

@@ -1,4 +1,4 @@
-import { BlogPostStatus } from "@classified-marketplace/shared";
+import { BlogPostStatus } from "../shared";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ConfirmDialog } from "../components/ConfirmDialog";

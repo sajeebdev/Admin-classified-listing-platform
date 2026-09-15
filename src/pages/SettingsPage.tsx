@@ -1,4 +1,4 @@
-import { MAX_IMAGES_OPTIONS, MAX_IMAGE_SIZE_MB_OPTIONS } from "@classified-marketplace/shared";
+import { MAX_IMAGES_OPTIONS, MAX_IMAGE_SIZE_MB_OPTIONS } from "../shared";
 import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ErrorState, LoadingState } from "../components/States";

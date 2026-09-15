@@ -1,4 +1,4 @@
-import { AdStatus, BlogPostStatus, ListingStatus, ModerationStatus } from "@classified-marketplace/shared";
+import { AdStatus, BlogPostStatus, ListingStatus, ModerationStatus } from "../shared";
 
 const tones = {
   neutral: "bg-slate-100 text-slate-700",

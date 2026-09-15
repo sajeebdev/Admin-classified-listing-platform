@@ -1,4 +1,4 @@
-import type { UserRole } from "@classified-marketplace/shared";
+import type { UserRole } from "../shared";
 import { api, toQueryString } from "./api";
 import type { AdminUser, PaginatedResult } from "./types";
 

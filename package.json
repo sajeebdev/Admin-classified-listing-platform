@@ -4,9 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "predev": "npm run build --workspace=@classified-marketplace/shared",
     "dev": "vite",
-    "prebuild": "npm run build --workspace=@classified-marketplace/shared",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "lint": "eslint .",
@@ -15,10 +13,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@classified-marketplace/shared": "^0.1.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-router-dom": "^7.9.6"
+    "react-router-dom": "^7.9.6",
+    "sanitize-html": "^2.17.7"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -26,6 +24,7 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
+    "@types/sanitize-html": "^2.16.1",
     "@vitejs/plugin-react": "^6.1.0",
     "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",

@@ -1,4 +1,4 @@
-import type { UserRole } from "@classified-marketplace/shared";
+import type { UserRole } from "../shared";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 

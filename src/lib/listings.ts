@@ -1,4 +1,4 @@
-import type { ListingStatus, ModerationStatus } from "@classified-marketplace/shared";
+import type { ListingStatus, ModerationStatus } from "../shared";
 import { api, toQueryString } from "./api";
 import type { AdminListing, PaginatedResult } from "./types";
 

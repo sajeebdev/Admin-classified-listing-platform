@@ -1,4 +1,4 @@
-import { ListingStatus, ModerationStatus } from "@classified-marketplace/shared";
+import { ListingStatus, ModerationStatus } from "../shared";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { FeaturedBadge, ListingStatusBadge, ModerationStatusBadge } from "../components/Badge";

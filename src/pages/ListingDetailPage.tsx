@@ -1,4 +1,4 @@
-import { ListingStatus, sanitizeListingDescriptionHtml } from "@classified-marketplace/shared";
+import { ListingStatus, sanitizeListingDescriptionHtml } from "../shared";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FeaturedBadge, ListingStatusBadge, ModerationStatusBadge } from "../components/Badge";

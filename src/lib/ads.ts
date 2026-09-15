@@ -1,4 +1,4 @@
-import type { AdPlacement, AdStatus } from "@classified-marketplace/shared";
+import type { AdPlacement, AdStatus } from "../shared";
 import { api, toQueryString } from "./api";
 import type { AdminAd, AdsOverview, AdStats, PaginatedResult } from "./types";
 

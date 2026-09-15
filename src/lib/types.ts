@@ -8,7 +8,7 @@ import type {
   ReportReason,
   ReportStatus,
   UserRole,
-} from "@classified-marketplace/shared";
+} from "../shared";
 
 export interface RefSummary {
   id: string;
