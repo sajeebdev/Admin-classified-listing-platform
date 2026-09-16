@@ -1,10 +1,22 @@
 /**
  * Thin fetch wrapper around the backend's standard `{ success, data }` /
- * `{ success: false, message, errors }` envelope (see docs/api.md). Unlike
- * the Next.js frontend, this is a pure SPA — every call runs in the
- * browser, so `credentials: "include"` alone is enough for the httpOnly
- * session cookies; there's no server-rendered request to forward cookies
- * for.
+ * `{ success: false, message, errors }` envelope (see docs/api.md). This is
+ * a pure SPA — every call runs in the browser, so `credentials: "include"`
+ * alone is enough for the httpOnly session cookies; there's no
+ * server-rendered request to forward cookies for.
+ *
+ * In production `VITE_API_URL` is the relative `/api/v1` (see
+ * .env.production), NOT the backend's own Render URL — `vercel.json`
+ * rewrites that path to the real backend so the browser only ever talks to
+ * this app's own origin. That's required, not just tidy: the backend's
+ * auth cookie is `SameSite=None` (genuinely cross-site between the
+ * Vercel and Render domains), and some mobile browsers (iOS Safari's
+ * cross-site tracking prevention, in particular) block that cookie
+ * outright — the login POST itself still succeeds, but the cookie never
+ * gets stored, so every subsequent admin request comes back 401. Routing
+ * through the same-origin proxy avoids the cross-site cookie entirely.
+ * Local dev keeps calling the backend directly (both on localhost, already
+ * same-site) since there's no Vercel rewrite in `vite dev`.
  */
 export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api/v1";
 

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { ApiClientError } from "../lib/api";
 import { getCurrentUser, login as loginRequest, logout as logoutRequest } from "../lib/auth";
 import type { AuthUser } from "../lib/types";
 
@@ -44,10 +45,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  /**
+   * `POST /auth/login`'s own response body includes the user regardless of
+   * whether the browser actually kept the session cookie it was handed —
+   * trusting that alone would report "logged in" even on a browser that
+   * silently dropped the cookie (see lib/api.ts's `API_BASE_URL` note), only
+   * to fail unpredictably on the next real request. Re-fetching `/auth/me`
+   * makes login prove the cookie round-trips before declaring success.
+   */
   async function login(email: string, password: string) {
-    const { user: loggedInUser } = await loginRequest(email, password);
-    setUser(loggedInUser);
-    return loggedInUser;
+    await loginRequest(email, password);
+    const current = await getCurrentUser();
+    if (!current) {
+      throw new ApiClientError(
+        "Login succeeded but your session could not be started. Your browser may be blocking cookies for this site.",
+        401,
+      );
+    }
+    setUser(current);
+    return current;
   }
 
   async function logout() {
