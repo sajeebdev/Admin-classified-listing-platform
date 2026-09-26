@@ -2,11 +2,16 @@ import type {
   AdPlacement,
   AdStatus,
   BlogPostStatus,
+  ImportFailureStage,
+  ImportJobStatus,
+  ImportRecordStatus,
+  ImportTrigger,
   ListingStatus,
   ModerationStatus,
   PriceType,
   ReportReason,
   ReportStatus,
+  SourceAccessMethod,
   UserRole,
 } from "../shared";
 
@@ -42,6 +47,14 @@ export interface PublicSeller {
   avatar: string | null;
 }
 
+/** Provenance for a listing created by the content importer — `null` for every ordinary, user-created listing. See `IListingSource` in backend/src/models/Listing.ts. */
+export interface ListingSource {
+  provider: string;
+  externalId: string;
+  sourceUrl: string | null;
+  importedAt: string;
+}
+
 /** The admin/owner-facing listing shape — `toOwnerListing` in listing.service.ts. */
 export interface AdminListing {
   id: string;
@@ -68,8 +81,97 @@ export interface AdminListing {
   featuredPriority: number;
   featuredAt: string | null;
   featuredUntil: string | null;
+  source: ListingSource | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * The admin-facing import job *summary* shape — `toAdminImportJobSummary`
+ * in importer.service.ts. Returned by `GET /admin/imports` (job history
+ * list); deliberately omits the potentially-large `records` array — see
+ * `AdminImportJobDetail` below. See docs/importer.md.
+ */
+export interface AdminImportJob {
+  id: string;
+  provider: string;
+  /** e.g. `"MOCK"`/`"API"`/`"BEDPAGE"` — what kind of source this job's adapter is. See `SourceType` in `../shared`. */
+  sourceType: string;
+  /** This job's source's own base/site URL, or `null` when it has none (e.g. the mock source). Never invented. */
+  sourceUrl: string | null;
+  /** `"NONE"`/`"WEBSITE"`/`"API"` — how this job's adapter actually retrieves data. Distinguishes "a website fetch, currently challenged by that site's own bot protection" from "an authorized API/feed integration". */
+  accessMethod: SourceAccessMethod;
+  /** The persisted `ImportSource` this run used, if any — `null` for the built-in mock source. */
+  importSourceId: string | null;
+  status: ImportJobStatus;
+  triggeredBy: ImportTrigger;
+  triggeredByUserId: string | null;
+  startedAt: string;
+  completedAt: string | null;
+  fetchedCount: number;
+  importedCount: number;
+  duplicateCount: number;
+  skippedCount: number;
+  failedCount: number;
+  /** Set only when the whole run failed before any record was processed — e.g. Bedpage's bot-protection wall (`SOURCE_FETCH_BOT_PROTECTION`). `null` otherwise. */
+  failureStage: ImportFailureStage | null;
+  failureReason: string | null;
+  errorMessages: string[];
+  createdAt: string;
+}
+
+/**
+ * Per-record diagnostics for one processed source record within a job —
+ * `IImportRecordResult` in backend/src/models/ImportJob.ts. Always exactly
+ * one of `IMPORTED`/`DUPLICATE`/`FAILED`; `failureStage`/`failureReason`
+ * are `null` unless `status === "FAILED"`.
+ */
+export interface ImportRecordResult {
+  provider: string;
+  externalId: string | null;
+  sourceUrl: string | null;
+  title: string | null;
+  status: ImportRecordStatus;
+  /** The `Listing` this record created — set only when `status === "IMPORTED"`. */
+  listingId: string | null;
+  failureStage: ImportFailureStage | null;
+  failureReason: string | null;
+}
+
+/** The full per-job diagnostic shape — `toAdminImportJobDetail` in importer.service.ts. Returned by `GET /admin/imports/:id` and by a manual `POST /admin/imports/run`. */
+export interface AdminImportJobDetail extends AdminImportJob {
+  records: ImportRecordResult[];
+}
+
+/** A persisted, admin-configured content source — `toAdminImportSource` in importSource.service.ts. See docs/importer.md. */
+export interface AdminImportSource {
+  id: string;
+  provider: string;
+  name: string;
+  sourceType: string;
+  sourceUrl: string;
+  /** `"WEBSITE"`/`"API"`/`"NONE"` — see `AdminImportJob.accessMethod`'s doc comment. */
+  accessMethod: SourceAccessMethod;
+  enabled: boolean;
+  /** Currently informational only — every enabled source runs on the shared global `IMPORTER_CRON` schedule (see docs/importer.md's "known limitations"). */
+  cronSchedule: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** The safe, admin-facing result of the "Test Source" diagnostic (`POST /admin/imports/sources/:id/test`) — `SourceConnectionDiagnostic` in sourceAdapter.ts. Never includes a cookie, header, credential, or raw response body. */
+export interface SourceConnectionDiagnostic {
+  dnsSucceeded: boolean;
+  httpsConnectionSucceeded: boolean;
+  httpStatus: number | null;
+  contentType: string | null;
+  challengeDetected: boolean;
+  challengeLabel: string | null;
+  responseBytes: number | null;
+  finalUrlHostname: string | null;
+  redirectCount: number | null;
+  classification: ImportFailureStage | "OK";
+  summary: string;
 }
 
 /** The admin-facing report shape — `toAdminReport` in report.service.ts. */
@@ -104,6 +206,18 @@ export interface CategorySummary {
   seoDescription: string | null;
   isActive?: boolean;
   sortOrder?: number;
+}
+
+/** The public `SecondaryNav`'s admin-managed links — see `backend/src/models/NavLink.ts`. */
+export interface NavLinkSummary {
+  id: string;
+  label: string;
+  url: string;
+  isActive: boolean;
+  sortOrder: number;
+  openInNewTab: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SubcategorySummary {

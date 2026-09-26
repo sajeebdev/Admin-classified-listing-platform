@@ -6,6 +6,9 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ErrorState, LoadingState, UnavailableState } from "../components/States";
 import { ApiClientError } from "../lib/api";
 import {
+  adminArchiveListing,
+  adminSubmitListing,
+  adminUpdateListing,
   approveListing,
   getAdminListing,
   rejectListing,
@@ -20,13 +23,16 @@ function toDateInputValue(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
 }
 
-type Action = "approve" | "reject" | "remove" | "restore" | null;
+type Action = "approve" | "reject" | "remove" | "restore" | "submit" | "archive" | null;
 
 const ACTIONABLE_STATUSES: ListingStatus[] = [
   ListingStatus.PENDING_REVIEW,
   ListingStatus.PUBLISHED,
   ListingStatus.REMOVED,
 ];
+
+/** DRAFT/REJECTED have no owner-facing moderation action here (only the real owner can normally submit them) — but staff need a way to move an *imported* listing (see docs/importer.md, owned by the system import account, not a real staff member) into the queue, or discard it outright. */
+const STAFF_ONLY_ACTIONABLE_STATUSES: ListingStatus[] = [ListingStatus.DRAFT, ListingStatus.REJECTED];
 
 export function ListingDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +51,16 @@ export function ListingDetailPage() {
   const [featuredUntilDraft, setFeaturedUntilDraft] = useState("");
   const [featuredSaving, setFeaturedSaving] = useState(false);
   const [featuredError, setFeaturedError] = useState<string | null>(null);
+
+  // Content edit panel — local draft fields, only sent on an explicit Save.
+  // See docs/importer.md: this exists primarily so staff can correct an
+  // imported listing's content before submitting it, but works on any
+  // editable listing.
+  const [editing, setEditing] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
+  const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   // No synchronous reset before the fetch — see the matching comment in
   // CategoriesPage.tsx.
@@ -116,6 +132,8 @@ export function ListingDetailPage() {
       else if (pendingAction === "reject") await rejectListing(id, reason);
       else if (pendingAction === "remove") await removeListing(id, reason || undefined);
       else if (pendingAction === "restore") await restoreListing(id);
+      else if (pendingAction === "submit") await adminSubmitListing(id);
+      else if (pendingAction === "archive") await adminArchiveListing(id);
       setPendingAction(null);
       setReason("");
       load();
@@ -123,6 +141,29 @@ export function ListingDetailPage() {
       setActionError(err instanceof ApiClientError ? err.message : "That action could not be completed.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  function startEdit() {
+    if (!listing) return;
+    setTitleDraft(listing.title);
+    setDescriptionDraft(listing.description);
+    setEditError(null);
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!id) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const updated = await adminUpdateListing(id, { title: titleDraft, description: descriptionDraft });
+      setListing(updated);
+      setEditing(false);
+    } catch (err) {
+      setEditError(err instanceof ApiClientError ? err.message : "Could not save these changes.");
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -161,15 +202,71 @@ export function ListingDetailPage() {
           <p className="mt-4 text-sm text-slate-400">No images.</p>
         )}
 
-        {/* Read-only rich-text rendering, same sanitize-then-render approach
-            as the public listing page — no separate formatting system for
-            admin (see docs/listings.md). There is no admin content-edit UI
-            for the description today (only moderation actions below), so
-            this is display-only. */}
-        <div
-          className="prose-blog mt-4 max-w-none whitespace-pre-line text-sm text-slate-700"
-          dangerouslySetInnerHTML={{ __html: sanitizeListingDescriptionHtml(listing.description) }}
-        />
+        {editing ? (
+          <div className="mt-4 space-y-3">
+            <div>
+              <label htmlFor="edit-title" className="mb-1 block text-xs font-medium text-slate-500">
+                Title
+              </label>
+              <input
+                id="edit-title"
+                value={titleDraft}
+                disabled={editSaving}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label htmlFor="edit-description" className="mb-1 block text-xs font-medium text-slate-500">
+                Description
+              </label>
+              <textarea
+                id="edit-description"
+                rows={6}
+                value={descriptionDraft}
+                disabled={editSaving}
+                onChange={(e) => setDescriptionDraft(e.target.value)}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+            </div>
+            {editError ? <p className="text-sm text-red-600">{editError}</p> : null}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={saveEdit}
+                disabled={editSaving}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {editSaving ? "Saving…" : "Save changes"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                disabled={editSaving}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Read-only rich-text rendering, same sanitize-then-render
+                approach as the public listing page — no separate formatting
+                system for admin (see docs/listings.md). */}
+            <div
+              className="prose-blog mt-4 max-w-none whitespace-pre-line text-sm text-slate-700"
+              dangerouslySetInnerHTML={{ __html: sanitizeListingDescriptionHtml(listing.description) }}
+            />
+            <button
+              type="button"
+              onClick={startEdit}
+              className="mt-3 text-sm font-medium text-blue-600 hover:underline"
+            >
+              Edit title/description
+            </button>
+          </>
+        )}
 
         <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
           <div>
@@ -182,6 +279,43 @@ export function ListingDetailPage() {
           </div>
         </dl>
       </div>
+
+      {listing.source ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-5">
+          <h2 className="mb-3 text-base font-semibold text-slate-900">Import source</h2>
+          <p className="mb-3 text-sm text-slate-500">
+            This listing was created by the content importer (see docs/importer.md) — it was never
+            published automatically and must go through the same review below as any other listing.
+          </p>
+          <dl className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <dt className="text-slate-500">Provider</dt>
+              <dd className="font-medium text-slate-900">{listing.source.provider}</dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">External ID</dt>
+              <dd className="font-mono text-xs text-slate-700">{listing.source.externalId}</dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-slate-500">Source URL</dt>
+              <dd className="truncate">
+                <a
+                  href={listing.source.sourceUrl ?? undefined}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  className="text-blue-600 hover:underline"
+                >
+                  {listing.source.sourceUrl ?? "—"}
+                </a>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-500">Imported</dt>
+              <dd className="text-slate-700">{new Date(listing.source.importedAt).toLocaleString()}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
 
       <div className="rounded-lg border border-slate-200 bg-white p-5">
         <div className="flex items-center gap-2">
@@ -287,7 +421,25 @@ export function ListingDetailPage() {
               Restore
             </button>
           ) : null}
-          {!ACTIONABLE_STATUSES.includes(listing.status) ? (
+          {STAFF_ONLY_ACTIONABLE_STATUSES.includes(listing.status) ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setPendingAction("submit")}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Submit for review
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingAction("archive")}
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Archive
+              </button>
+            </>
+          ) : null}
+          {!ACTIONABLE_STATUSES.includes(listing.status) && !STAFF_ONLY_ACTIONABLE_STATUSES.includes(listing.status) ? (
             <p className="text-sm text-slate-500">No moderation action applies to a {listing.status} listing.</p>
           ) : null}
         </div>
@@ -308,7 +460,11 @@ export function ListingDetailPage() {
               ? "Reject this listing"
               : pendingAction === "remove"
                 ? "Remove this listing?"
-                : "Restore this listing?"
+                : pendingAction === "restore"
+                  ? "Restore this listing?"
+                  : pendingAction === "submit"
+                    ? "Submit this listing for review?"
+                    : "Archive this listing?"
         }
         description={
           pendingAction === "approve"
@@ -317,10 +473,14 @@ export function ListingDetailPage() {
               ? "It will be taken down from public view."
               : pendingAction === "restore"
                 ? "It will become publicly visible again."
-                : undefined
+                : pendingAction === "submit"
+                  ? "It will enter the normal moderation queue — it will not become publicly visible until it is separately approved."
+                  : pendingAction === "archive"
+                    ? "It will be discarded — this is the platform's equivalent of deleting it."
+                    : undefined
         }
         confirmLabel={pendingAction === "reject" ? "Reject" : "Confirm"}
-        danger={pendingAction === "reject" || pendingAction === "remove"}
+        danger={pendingAction === "reject" || pendingAction === "remove" || pendingAction === "archive"}
         busy={busy}
         onConfirm={confirmAction}
         onCancel={() => {

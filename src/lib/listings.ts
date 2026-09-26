@@ -7,6 +7,8 @@ export interface AdminListingQuery {
   moderationStatus?: ModerationStatus;
   ownerId?: string;
   featured?: boolean;
+  /** Powers the "Imported Listings" view (see docs/importer.md) — `true` shows only listings with a `source`, `false` only ordinary ones. */
+  imported?: boolean;
   page?: number;
   limit?: number;
 }
@@ -17,6 +19,7 @@ export function listAdminListings(query: AdminListingQuery = {}) {
     moderationStatus: query.moderationStatus,
     ownerId: query.ownerId,
     featured: query.featured === undefined ? undefined : String(query.featured),
+    imported: query.imported === undefined ? undefined : String(query.imported),
     page: query.page,
     limit: query.limit,
   });
@@ -52,6 +55,30 @@ export async function removeListing(id: string, reason?: string): Promise<AdminL
 
 export async function restoreListing(id: string): Promise<AdminListing> {
   const { listing } = await api.post<{ listing: AdminListing }>(`/admin/listings/${id}/restore`);
+  return listing;
+}
+
+export interface AdminUpdateListingInput {
+  title?: string;
+  description?: string;
+  price?: number;
+}
+
+/** Staff-facing edit — works on any listing regardless of owner, most notably an imported one (see docs/importer.md, `adminUpdateListing` in listing.service.ts). */
+export async function adminUpdateListing(id: string, input: AdminUpdateListingInput): Promise<AdminListing> {
+  const { listing } = await api.patch<{ listing: AdminListing }>(`/admin/listings/${id}`, input);
+  return listing;
+}
+
+/** DRAFT/REJECTED -> PENDING_REVIEW, without an ownership check — the only way an imported listing (owned by the system import account) enters the moderation queue. */
+export async function adminSubmitListing(id: string): Promise<AdminListing> {
+  const { listing } = await api.post<{ listing: AdminListing }>(`/admin/listings/${id}/submit`);
+  return listing;
+}
+
+/** Discards a listing regardless of owner — used to reject an imported DRAFT nobody wants to publish. */
+export async function adminArchiveListing(id: string): Promise<AdminListing> {
+  const { listing } = await api.post<{ listing: AdminListing }>(`/admin/listings/${id}/archive`);
   return listing;
 }
 

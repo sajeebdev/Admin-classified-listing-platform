@@ -10,13 +10,15 @@ const navItems = [
   { to: "/blog", label: "Blog" },
   { to: "/reports", label: "Reports" },
   { to: "/categories", label: "Categories" },
+  { to: "/nav-links", label: "Nav Links" },
   { to: "/locations", label: "Locations" },
   { to: "/users", label: "Users" },
 ];
 
-// Settings is ADMIN/SUPER_ADMIN only (see App.tsx's `SETTINGS_ROLES`) — kept
-// out of the shared list above so a MODERATOR never sees a link that only
-// leads to an "Access denied" page.
+// Imports and Settings are both ADMIN/SUPER_ADMIN only (see App.tsx's
+// `SETTINGS_ROLES`) — kept out of the shared list above so a MODERATOR never
+// sees a link that only leads to an "Access denied" page.
+const importsNavItem = { to: "/imports", label: "Imports", end: false };
 const settingsNavItem = { to: "/settings", label: "Settings", end: false };
 
 export function Layout() {
@@ -25,7 +27,7 @@ export function Layout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const visibleNavItems =
     user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN
-      ? [...navItems, settingsNavItem]
+      ? [...navItems, importsNavItem, settingsNavItem]
       : navItems;
 
   async function handleLogout() {

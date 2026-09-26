@@ -8,10 +8,12 @@ import { BlogPostFormPage } from "./pages/BlogPostFormPage";
 import { BlogPostsPage } from "./pages/BlogPostsPage";
 import { CategoriesPage } from "./pages/CategoriesPage";
 import { DashboardHome } from "./pages/DashboardHome";
+import { ImportsPage } from "./pages/ImportsPage";
 import { ListingDetailPage } from "./pages/ListingDetailPage";
 import { ListingsPage } from "./pages/ListingsPage";
 import { LocationsPage } from "./pages/LocationsPage";
 import { LoginPage } from "./pages/LoginPage";
+import { NavLinksPage } from "./pages/NavLinksPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
@@ -52,7 +54,16 @@ function App() {
         <Route path="/blog/new" element={<BlogPostFormPage />} />
         <Route path="/blog/:id/edit" element={<BlogPostFormPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route
+          path="/imports"
+          element={
+            <ProtectedRoute roles={SETTINGS_ROLES}>
+              <ImportsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/nav-links" element={<NavLinksPage />} />
         <Route path="/locations" element={<LocationsPage />} />
         <Route path="/users" element={<UsersPage />} />
         <Route
