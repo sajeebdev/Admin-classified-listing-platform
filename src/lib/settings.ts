@@ -24,3 +24,10 @@ export async function updateListingImageSettings(input: {
   );
   return settings;
 }
+
+export async function updateEmailVerificationEnabled(emailVerificationEnabled: boolean): Promise<SiteSettings> {
+  const { settings } = await api.patch<{ settings: SiteSettings }>("/admin/settings/authentication", {
+    emailVerificationEnabled,
+  });
+  return settings;
+}

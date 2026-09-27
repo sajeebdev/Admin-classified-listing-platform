@@ -3,12 +3,18 @@ import { useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { ErrorState, LoadingState } from "../components/States";
 import { ApiClientError } from "../lib/api";
-import { getSiteSettings, updateListingAutoApprove, updateListingImageSettings } from "../lib/settings";
+import {
+  getSiteSettings,
+  updateEmailVerificationEnabled,
+  updateListingAutoApprove,
+  updateListingImageSettings,
+} from "../lib/settings";
 import type { SiteSettings } from "../lib/types";
 
 /**
- * Site-wide configuration. Two setting groups today, each its own titled
- * section (Listing Moderation — Task F; Listing Image Settings below) —
+ * Site-wide configuration. Three setting groups today, each its own titled
+ * section (Listing Moderation — Task F; Listing Image Settings; Email
+ * Verification below) —
  * meant to grow by adding another section like these, not by restructuring
  * into a tabbed "settings app". Both reuse the one `SiteSettings`
  * document/API (`getSiteSettings`/`settings.service.ts`) — no separate
@@ -34,6 +40,12 @@ export function SettingsPage() {
   const [imageSettingsSaving, setImageSettingsSaving] = useState(false);
   const [imageSettingsError, setImageSettingsError] = useState<string | null>(null);
   const [imageSettingsSaved, setImageSettingsSaved] = useState(false);
+
+  // Email verification — same confirm-then-save-immediately pattern as the
+  // moderation toggle above, since it changes what login enforces.
+  const [pendingEmailVerification, setPendingEmailVerification] = useState<boolean | null>(null);
+  const [emailVerificationSaving, setEmailVerificationSaving] = useState(false);
+  const [emailVerificationError, setEmailVerificationError] = useState<string | null>(null);
 
   useEffect(() => {
     getSiteSettings()
@@ -66,6 +78,23 @@ export function SettingsPage() {
     }
   }
 
+  async function confirmEmailVerificationToggle() {
+    if (pendingEmailVerification === null) return;
+    setEmailVerificationSaving(true);
+    setEmailVerificationError(null);
+    try {
+      const updated = await updateEmailVerificationEnabled(pendingEmailVerification);
+      setSettings((prev) => (prev ? { ...prev, ...updated } : updated));
+      setPendingEmailVerification(null);
+    } catch (err) {
+      setEmailVerificationError(
+        err instanceof ApiClientError ? err.message : "Could not update email verification setting.",
+      );
+    } finally {
+      setEmailVerificationSaving(false);
+    }
+  }
+
   async function saveImageSettings() {
     setImageSettingsSaving(true);
     setImageSettingsError(null);
@@ -87,6 +116,10 @@ export function SettingsPage() {
   if (!settings) return <LoadingState />;
 
   const autoApprove = settings.listingModeration.autoApprove;
+  // Defaults to enabled if an older backend response lacks the group — the
+  // backend's own default, so this never displays a looser state than the
+  // server actually enforces.
+  const emailVerificationEnabled = settings.authentication?.emailVerificationEnabled ?? true;
 
   return (
     <div className="max-w-2xl space-y-4">
@@ -200,6 +233,54 @@ export function SettingsPage() {
 
         {imageSettingsError ? <p className="text-sm text-red-600">{imageSettingsError}</p> : null}
       </section>
+
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-5">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">Email Verification</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Require users to verify their email before logging in. Changing this never modifies any existing
+            account's verification status — accounts that are still unverified can log in while this is
+            disabled, and will need to verify again if it is re-enabled.
+          </p>
+        </div>
+
+        <label className="flex items-start gap-3 rounded-md border border-slate-200 p-3">
+          <input
+            type="checkbox"
+            checked={emailVerificationEnabled}
+            disabled={emailVerificationSaving}
+            onChange={(e) => setPendingEmailVerification(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-slate-900">
+              Email Verification: {emailVerificationEnabled ? "Enabled" : "Disabled"}
+            </span>
+            <span className="mt-0.5 block text-sm text-slate-500">
+              {emailVerificationEnabled
+                ? "Enabled — new users receive a verification email and cannot log in until they verify."
+                : "Disabled — new users can log in immediately after registering; no verification email is sent."}
+            </span>
+          </span>
+        </label>
+
+        {emailVerificationError ? <p className="text-sm text-red-600">{emailVerificationError}</p> : null}
+      </section>
+
+      <ConfirmDialog
+        open={pendingEmailVerification !== null}
+        title={pendingEmailVerification ? "Enable email verification?" : "Disable email verification?"}
+        description={
+          pendingEmailVerification
+            ? "New users will need to verify their email before logging in. Existing accounts that are still unverified will also be blocked from logging in until they verify."
+            : "New users will be able to log in immediately without verifying their email. Existing unverified accounts will also be able to log in."
+        }
+        confirmLabel={pendingEmailVerification ? "Enable" : "Disable"}
+        danger={!pendingEmailVerification}
+        busy={emailVerificationSaving}
+        onConfirm={confirmEmailVerificationToggle}
+        onCancel={() => setPendingEmailVerification(null)}
+      />
 
       <ConfirmDialog
         open={pendingValue !== null}

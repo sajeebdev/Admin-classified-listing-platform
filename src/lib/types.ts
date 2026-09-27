@@ -362,6 +362,9 @@ export interface SiteSettings {
     maxImageSizeMB: number;
     optimizationEnabled: boolean;
   };
+  authentication: {
+    emailVerificationEnabled: boolean;
+  };
   updatedAt: string | null;
   updatedBy: string | null;
 }
