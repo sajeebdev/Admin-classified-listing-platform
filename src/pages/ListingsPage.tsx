@@ -42,6 +42,10 @@ export function ListingsPage() {
         if (cancelled) return;
         setListings(result.items);
         setTotalPages(result.totalPages);
+        // Without this, one failed load (e.g. a half-typed owner id the API
+        // rejects as invalid) hid the table for good, even once the filter
+        // was corrected.
+        setError(null);
       })
       .catch(() => {
         if (!cancelled) setError("Could not load listings.");

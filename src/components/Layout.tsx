@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { UserRole } from "../shared";
+import { BRAND, UserRole } from "../shared";
 import { useAuth } from "../context/AuthContext";
 
 const navItems = [
@@ -14,6 +14,21 @@ const navItems = [
   { to: "/locations", label: "Locations" },
   { to: "/users", label: "Users" },
 ];
+
+/** "B" monogram tile + name — the same mark as the public site's logo and this dashboard's favicon. */
+function AdminBrand() {
+  return (
+    <p className="flex items-center gap-2 text-base font-bold text-slate-900">
+      <span
+        aria-hidden="true"
+        className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-blue-600 text-sm font-extrabold leading-none text-white"
+      >
+        {BRAND.name.charAt(0)}
+      </span>
+      <span className="whitespace-nowrap">{BRAND.name} Admin</span>
+    </p>
+  );
+}
 
 // Imports and Settings are both ADMIN/SUPER_ADMIN only (see App.tsx's
 // `SETTINGS_ROLES`) — kept out of the shared list above so a MODERATOR never
@@ -73,7 +88,7 @@ export function Layout() {
       {/* Mobile top bar: the fixed-width sidebar below is `md:flex`-only, so
           screens narrower than that need their own way to reach navigation. */}
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-3 md:hidden">
-        <p className="text-base font-bold text-slate-900">Classifieds Admin</p>
+        <AdminBrand />
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
@@ -98,7 +113,7 @@ export function Layout() {
           />
           <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
-              <p className="text-base font-bold text-slate-900">Classifieds Admin</p>
+              <AdminBrand />
               <button
                 type="button"
                 onClick={() => setMobileNavOpen(false)}
@@ -118,7 +133,7 @@ export function Layout() {
       {/* Desktop sidebar. */}
       <aside className="hidden w-56 flex-col border-r border-slate-200 bg-white md:flex">
         <div className="border-b border-slate-200 px-4 py-4">
-          <p className="text-base font-bold text-slate-900">Classifieds Admin</p>
+          <AdminBrand />
         </div>
         {sidebarBody}
       </aside>

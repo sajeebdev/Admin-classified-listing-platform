@@ -29,6 +29,13 @@ export function listAdminListings(query: AdminListingQuery = {}) {
 // Single-listing endpoints wrap their payload as `{ listing: ... }` (see
 // listing.controller.ts) — unwrapped here so every caller works with the
 // plain object.
+//
+// Only `GET /admin/listings/:id` returns the fully shaped `AdminListing`
+// (via `toOwnerListing`). Every mutation below returns the backend's raw
+// saved document — scalar fields (`title`, `status`, ...) are accurate, but
+// `category`/`location`/`seller` are not in the shaped form, so a caller
+// must never put a mutation's result into state as a whole `AdminListing`;
+// merge the scalar fields it changed, or re-fetch.
 
 export async function getAdminListing(id: string): Promise<AdminListing> {
   const { listing } = await api.get<{ listing: AdminListing }>(`/admin/listings/${id}`);
@@ -92,10 +99,9 @@ export interface UpdateFeaturedInput {
 /**
  * `PATCH /admin/listings/:id/featured` returns the backend's *raw* saved
  * listing document (`listing.service.ts#setListingFeatured` returns the
- * Mongoose document itself, not a ref-populated shape) — unlike `GET
- * /admin/listings/:id` and the approve/reject/remove/restore endpoints,
- * which all go through `toOwnerListing` and return the full `AdminListing`
- * shape (`category`/`location`/`seller` as populated ref objects). This
+ * Mongoose document itself, not a ref-populated shape) — like every other
+ * mutation here, and unlike `GET /admin/listings/:id`, which goes through
+ * `toOwnerListing` and returns the full `AdminListing` shape. This
  * type only claims the fields that are genuinely safe to read off the raw
  * document: `id` and the plain scalar/date Featured fields themselves —
  * `category`/`location`/`seller`/`images` are present at runtime as raw

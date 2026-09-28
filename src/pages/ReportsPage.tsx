@@ -36,32 +36,48 @@ export function ReportsPage() {
   const [page, setPage] = useState(1);
   const [reports, setReports] = useState<AdminReport[] | null>(null);
   const [totalPages, setTotalPages] = useState(1);
-  const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  // Bumped after a successful review to re-run the load effect.
+  const [reloadKey, setReloadKey] = useState(0);
   const [pendingAction, setPendingAction] = useState<{ report: AdminReport; next: "REVIEWED" | "DISMISSED" } | null>(
     null,
   );
   const [busy, setBusy] = useState(false);
 
-  function load() {
+  // A load failure used to be permanent: `error` was never cleared, so one
+  // failed request (or failed action) hid the table until a full page
+  // reload. Load and action errors are now tracked separately, a successful
+  // load clears its error, and a response for a filter/page the moderator
+  // has already moved away from is discarded instead of overwriting the
+  // newer one.
+  useEffect(() => {
+    let cancelled = false;
     listAdminReports({ status: status || undefined, page, limit: 20 })
       .then((result) => {
+        if (cancelled) return;
         setReports(result.items);
         setTotalPages(result.totalPages);
+        setLoadError(null);
       })
-      .catch(() => setError("Could not load reports."));
-  }
-
-  useEffect(load, [status, page]);
+      .catch(() => {
+        if (!cancelled) setLoadError("Could not load reports.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, page, reloadKey]);
 
   async function confirmAction() {
     if (!pendingAction) return;
     setBusy(true);
+    setActionError(null);
     try {
       await reviewReport(pendingAction.report.id, pendingAction.next);
       setPendingAction(null);
-      load();
+      setReloadKey((key) => key + 1);
     } catch {
-      setError("That action could not be completed.");
+      setActionError("That action could not be completed.");
     } finally {
       setBusy(false);
     }
@@ -93,11 +109,12 @@ export function ReportsPage() {
         </select>
       </div>
 
-      {error ? <ErrorState message={error} /> : null}
-      {!error && reports === null ? <LoadingState /> : null}
-      {!error && reports !== null && reports.length === 0 ? <EmptyState title="No reports match these filters." /> : null}
+      {loadError ? <ErrorState message={loadError} /> : null}
+      {actionError ? <ErrorState message={actionError} /> : null}
+      {!loadError && reports === null ? <LoadingState /> : null}
+      {!loadError && reports !== null && reports.length === 0 ? <EmptyState title="No reports match these filters." /> : null}
 
-      {!error && reports && reports.length > 0 ? (
+      {!loadError && reports && reports.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">

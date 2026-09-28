@@ -23,6 +23,9 @@ export function UsersPage() {
   const { user: currentUser } = useAuth();
 
   const [search, setSearch] = useState("");
+  // What's actually queried — trails `search` by a short pause in typing,
+  // so a search is one request rather than one per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [role, setRole] = useState<UserRole | "">("");
   const [activeFilter, setActiveFilter] = useState<"" | "true" | "false">("");
   const [bannedFilter, setBannedFilter] = useState<"" | "true" | "false">("");
@@ -35,16 +38,25 @@ export function UsersPage() {
 
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState(false);
+  // Bumped after a successful action to re-run the load effect.
+  const [reloadKey, setReloadKey] = useState(0);
 
-  // Single `load` function, reused both as the effect body and after a
-  // successful action — same shape as `ReportsPage.tsx`'s `load`. No
-  // synchronous reset before the fetch (see the matching comment in
-  // ListingsPage.tsx/CategoriesPage.tsx): the previous page's results
-  // simply stay on screen until the new filter's results (or an error)
-  // arrive.
-  function load() {
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Single load effect, re-run after a successful action via `reloadKey` —
+  // same shape as `ReportsPage.tsx`. No synchronous reset before the fetch
+  // (see the matching comment in ListingsPage.tsx/CategoriesPage.tsx): the
+  // previous page's results stay on screen until the new ones (or an
+  // error) arrive. `cancelled` discards a response for a query that has
+  // since changed — without it, a slow response for "jo" could land after
+  // the one for "john" and show the wrong users.
+  useEffect(() => {
+    let cancelled = false;
     listAdminUsers({
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       role: role || undefined,
       isActive: activeFilter === "" ? undefined : activeFilter === "true",
       isBanned: bannedFilter === "" ? undefined : bannedFilter === "true",
@@ -52,14 +64,18 @@ export function UsersPage() {
       limit: 20,
     })
       .then((result) => {
+        if (cancelled) return;
         setUsers(result.items);
         setTotalPages(result.totalPages);
         setLoadError(null);
       })
-      .catch(() => setLoadError("Could not load users."));
-  }
-
-  useEffect(load, [search, role, activeFilter, bannedFilter, page]);
+      .catch(() => {
+        if (!cancelled) setLoadError("Could not load users.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch, role, activeFilter, bannedFilter, page, reloadKey]);
 
   async function confirmAction() {
     if (!pendingAction) return;
@@ -68,7 +84,7 @@ export function UsersPage() {
     try {
       await updateUserStatus(pendingAction.user.id, pendingAction.update);
       setPendingAction(null);
-      load();
+      setReloadKey((key) => key + 1);
     } catch (err) {
       setActionError(
         err instanceof ApiClientError ? err.message : "That action could not be completed.",

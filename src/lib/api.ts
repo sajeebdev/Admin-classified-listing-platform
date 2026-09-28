@@ -45,7 +45,32 @@ interface ApiFetchOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
 
-async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+/** Auth endpoints that must never trigger a silent refresh-and-retry — they either don't use the session, or *are* the session operation. */
+const NO_REFRESH_PATHS = new Set(["/auth/login", "/auth/refresh", "/auth/logout"]);
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+/**
+ * The access-token cookie lives 15 minutes; the 30-day refresh-token cookie
+ * is what's meant to keep staff signed in past that, but nothing ever
+ * called `/auth/refresh` — so a moderator was silently logged out mid-review
+ * every 15 minutes. Single-flight: the backend rotates refresh tokens and
+ * treats a reused one as theft (revoking every session), so several
+ * requests that 401 together must share one refresh call.
+ */
+function refreshSession(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = fetch(`${API_BASE_URL}/auth/refresh`, { method: "POST", credentials: "include" })
+      .then((res) => res.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+async function apiFetch<T>(path: string, options: ApiFetchOptions = {}, isRetry = false): Promise<T> {
   const { body, headers, ...rest } = options;
   const finalHeaders = new Headers(headers);
   const hasBody = body !== undefined;
@@ -72,6 +97,10 @@ async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise
       "Could not reach the server. Please check your connection and try again.",
       0,
     );
+  }
+
+  if (res.status === 401 && !isRetry && !NO_REFRESH_PATHS.has(path.split("?")[0]!) && (await refreshSession())) {
+    return apiFetch<T>(path, options, true);
   }
 
   const responseBody = await res.json().catch(() => null);

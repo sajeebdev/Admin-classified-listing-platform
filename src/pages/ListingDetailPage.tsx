@@ -158,7 +158,12 @@ export function ListingDetailPage() {
     setEditError(null);
     try {
       const updated = await adminUpdateListing(id, { title: titleDraft, description: descriptionDraft });
-      setListing(updated);
+      // Same trap `saveFeatured` above documents: this endpoint returns the
+      // raw saved document (no shaped `location`/`category`/`seller`), so
+      // replacing state with it crashed the next render on
+      // `listing.location.city` — a white screen after every content edit.
+      // Merge only the fields this form edits.
+      setListing((prev) => (prev ? { ...prev, title: updated.title, description: updated.description } : prev));
       setEditing(false);
     } catch (err) {
       setEditError(err instanceof ApiClientError ? err.message : "Could not save these changes.");
