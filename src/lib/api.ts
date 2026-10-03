@@ -22,10 +22,9 @@ export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:40
 
 /**
  * The public Next.js frontend's own origin — used only to build a link to
- * `/blog/preview/:id` (see BlogPostsPage.tsx/BlogPostFormPage.tsx). Not a
- * fabricated production domain, same convention as the frontend app's own
- * `NEXT_PUBLIC_SITE_URL` fallback (see frontend/src/lib/utils/seo.ts) —
- * this just needs to agree with wherever that app actually runs.
+ * `/blog/preview/:id` (see BlogPostsPage.tsx/BlogPostFormPage.tsx). Set
+ * `VITE_SITE_URL` to the public frontend domain in production; local dev
+ * defaults to localhost.
  */
 export const SITE_URL = (import.meta.env.VITE_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 

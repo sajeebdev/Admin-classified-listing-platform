@@ -35,9 +35,9 @@ export const SourceType = {
   API: "API",
   /** A real, live website reached over HTTP — see `adapters/bedpage/bedpage.adapter.ts` and docs/importer.md's authorization/security sections. */
   BEDPAGE: "BEDPAGE",
-  /** A generic, admin-configured CSV data feed — see `adapters/feed/feed.adapter.ts`. */
+  /** An admin-uploaded CSV parsed locally — see `adapters/feed/uploadedFeed.adapter.ts`. */
   CSV_FEED: "CSV_FEED",
-  /** A generic, admin-configured JSON data feed — see `adapters/feed/feed.adapter.ts`. */
+  /** An admin-uploaded JSON file parsed locally — see `adapters/feed/uploadedFeed.adapter.ts`. */
   JSON_FEED: "JSON_FEED",
 } as const;
 
@@ -48,10 +48,9 @@ export type SourceType = (typeof SourceType)[keyof typeof SourceType];
  * `SourceType` (which provider) so the admin UI can tell apart "this is a
  * real website fetch, currently blocked by that site's own bot protection"
  * from "this is a documented, authorized API/feed integration". `WEBSITE`
- * is the only method any real adapter currently implements (see
- * `BedpageSourceAdapter`) — `API` exists so a future, genuinely
- * authorized integration has a place to report itself distinctly, not
- * because one exists today.
+ * is used by the Bedpage adapter; `FILE` identifies an admin-uploaded
+ * local file. `API`/`FEED` remain available for future authorized remote
+ * integrations.
  */
 export const SourceAccessMethod = {
   /** No real fetch happens at all (the mock source). */
@@ -60,8 +59,10 @@ export const SourceAccessMethod = {
   WEBSITE: "WEBSITE",
   /** A documented, authorized API/feed integration — credentials (if any) never live in `ImportSource.sourceUrl` or the admin UI. */
   API: "API",
-  /** A generic, admin-configured CSV/JSON data feed URL — see `adapters/feed/feed.adapter.ts`. Distinct from `API` since it's a plain data file fetch, not a bespoke API integration. */
+  /** Reserved for a future authorized remote CSV/JSON feed. Local uploads use `FILE` and never fetch a URL. */
   FEED: "FEED",
+  /** A CSV/JSON file uploaded directly by an admin; no outbound request is made. */
+  FILE: "FILE",
 } as const;
 
 export type SourceAccessMethod = (typeof SourceAccessMethod)[keyof typeof SourceAccessMethod];
@@ -132,6 +133,7 @@ export const ImportFailureStage = {
   LOCATION_MAPPING: "LOCATION_MAPPING",
   DUPLICATE_CHECK: "DUPLICATE_CHECK",
   LISTING_VALIDATION: "LISTING_VALIDATION",
+  LISTING_IMAGE_STORAGE: "LISTING_IMAGE_STORAGE",
   LISTING_CREATE: "LISTING_CREATE",
   UNKNOWN: "UNKNOWN",
 } as const;

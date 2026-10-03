@@ -1,11 +1,13 @@
-import { ImportJobStatus, ImportRecordStatus } from "../shared";
-import { Fragment, useEffect, useState } from "react";
+import { ImportFailureStage, ImportJobStatus, ImportRecordStatus } from "../shared";
+import { Fragment, type FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge, ListingStatusBadge, ModerationStatusBadge } from "../components/Badge";
 import { EmptyState, ErrorState, LoadingState } from "../components/States";
+import { HtmlParserErrorBoundary } from "../components/imports/HtmlParserErrorBoundary";
+import { HtmlListingParser } from "../components/imports/HtmlListingParser";
 import { ApiClientError } from "../lib/api";
 import { createImportSource, listImportSources, testImportSource, updateImportSource } from "../lib/importSources";
-import { getImportJob, listImportJobs, runImport } from "../lib/imports";
+import { getImportJob, listImportJobs, runImport, uploadImportFile } from "../lib/imports";
 import { listAdminListings } from "../lib/listings";
 import type {
   AdminImportJob,
@@ -419,12 +421,20 @@ function ImportSourcesPanel({
  * moderation action.
  */
 export function ImportsPage() {
+  const [activeImportTab, setActiveImportTab] = useState<"file" | "html">("file");
+  const [htmlParserSource, setHtmlParserSource] = useState("");
   const [jobs, setJobs] = useState<AdminImportJob[] | null>(null);
   const [jobProviderFilter, setJobProviderFilter] = useState<string>("");
   const [listings, setListings] = useState<AdminListing[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
+  const [uploadSourceName, setUploadSourceName] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadImageFiles, setUploadImageFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null);
   const [jobDetails, setJobDetails] = useState<Record<string, AdminImportJobDetail>>({});
@@ -463,6 +473,41 @@ export function ImportsPage() {
     }
   }
 
+  async function handleUploadImport(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!uploadFile) {
+      setUploadError("Choose a CSV or JSON file to import.");
+      return;
+    }
+
+    const form = event.currentTarget;
+    const formData = new FormData();
+    formData.set("sourceName", uploadSourceName);
+    formData.set("file", uploadFile);
+    uploadImageFiles.forEach((file) => formData.append("images", file));
+    setUploading(true);
+    setUploadError(null);
+    setUploadMessage(null);
+    try {
+      const job = await uploadImportFile(formData);
+      setJobProviderFilter("");
+      cacheJobResult(job);
+      setUploadMessage(
+        job.status === ImportJobStatus.FAILED
+          ? `Upload failed: ${job.failureReason ?? job.failureStage ?? "unknown error"}`
+          : `Upload complete: ${job.importedCount} imported, ${job.duplicateCount} duplicates, ${job.skippedCount} skipped, ${job.failedCount} failed.`,
+      );
+      form.reset();
+      setUploadSourceName("");
+      setUploadFile(null);
+      setUploadImageFiles([]);
+    } catch (err) {
+      setUploadError(err instanceof ApiClientError ? err.message : "The file could not be imported.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function toggleDetails(jobId: string) {
     if (expandedJobId === jobId) {
       setExpandedJobId(null);
@@ -498,6 +543,108 @@ export function ImportsPage() {
       {runError ? <ErrorState message={runError} /> : null}
 
       <ImportSourcesPanel onSourceRan={cacheJobResult} onViewHistory={setJobProviderFilter} />
+
+      <section className="space-y-3">
+        <div role="tablist" aria-label="Import tools" className="flex border-b border-slate-200">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeImportTab === "file"}
+            aria-controls="csv-json-import-panel"
+            onClick={() => setActiveImportTab("file")}
+            className={`border-b-2 px-3 py-2 text-sm font-medium ${activeImportTab === "file" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+          >
+            CSV/JSON Import
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeImportTab === "html"}
+            aria-controls="html-parser-panel"
+            onClick={() => setActiveImportTab("html")}
+            className={`border-b-2 px-3 py-2 text-sm font-medium ${activeImportTab === "html" ? "border-blue-600 text-blue-700" : "border-transparent text-slate-600 hover:text-slate-900"}`}
+          >
+            HTML Parser
+          </button>
+        </div>
+        {activeImportTab === "file" ? (
+        <div id="csv-json-import-panel" role="tabpanel" className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900">Manual CSV/JSON import</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Upload data you are authorized to import. Files are parsed locally by the importer; no source URLs are fetched.
+          </p>
+        </div>
+        <form onSubmit={handleUploadImport} className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="upload-source-name" className="mb-1 block text-xs font-medium text-slate-600">
+                Source name
+              </label>
+              <input
+                id="upload-source-name"
+                value={uploadSourceName}
+                onChange={(event) => setUploadSourceName(event.target.value)}
+                placeholder="Authorized partner feed"
+                maxLength={120}
+                required
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-500">Reuse the same name on re-uploads to detect duplicates.</p>
+            </div>
+            <div>
+              <label htmlFor="upload-import-file" className="mb-1 block text-xs font-medium text-slate-600">
+                CSV or JSON file
+              </label>
+              <input
+                id="upload-import-file"
+                type="file"
+                accept=".csv,.json,text/csv,application/json"
+                required
+                onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
+                className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="upload-import-images" className="mb-1 block text-xs font-medium text-slate-600">
+                Listing image files
+              </label>
+              <input
+                id="upload-import-images"
+                type="file"
+                multiple
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={(event) => setUploadImageFiles(Array.from(event.target.files ?? []))}
+                className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-md file:border file:border-slate-300 file:bg-white file:px-3 file:py-2 file:text-sm"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                List matching filenames in each record&apos;s images array. Maximum 200 files and 25 MB combined; each file is limited to 20 MB.
+              </p>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">
+            JSON must be an array of records. CSV needs headers: externalId, sourceUrl, title, description, category,
+            country, state, city, publishedAt. Optional: subcategory, price, images (JSON array of uploaded filenames).
+          </p>
+          {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
+          {uploadMessage ? <p className="text-sm text-slate-700">{uploadMessage}</p> : null}
+          <button
+            type="submit"
+            disabled={uploading || !uploadSourceName.trim() || !uploadFile}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {uploading ? "Importing…" : "Upload and import"}
+          </button>
+        </form>
+        </div>
+        ) : (
+          <div id="html-parser-panel" role="tabpanel">
+            <HtmlParserErrorBoundary>
+              <HtmlListingParser html={htmlParserSource} onHtmlChange={setHtmlParserSource} onImported={cacheJobResult} />
+            </HtmlParserErrorBoundary>
+          </div>
+        )}
+      </section>
 
       <div>
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -551,9 +698,23 @@ export function ImportsPage() {
                       <td className="px-4 py-3">
                         <Badge tone={jobStatusTone[job.status]}>{job.status}</Badge>
                         {job.failureStage ? (
-                          <p className="mt-1 max-w-[200px] text-xs text-red-600" title={job.failureReason ?? undefined}>
-                            {job.failureStage}
-                          </p>
+                          <div className="mt-1 max-w-[240px] whitespace-normal text-xs">
+                            {job.failureStage === ImportFailureStage.SOURCE_FETCH_BOT_PROTECTION ? (
+                              <div className="space-y-1">
+                                <p className="font-medium text-red-600">Source access blocked</p>
+                                <p className="text-slate-700">No data imported.</p>
+                                <p className="text-slate-600">
+                                  Recommended action: obtain authorized API/feed access or upload a CSV/JSON file.
+                                </p>
+                              </div>
+                            ) : null}
+                            {job.failureStage !== ImportFailureStage.SOURCE_FETCH_BOT_PROTECTION ? (
+                              <>
+                                <p className="font-medium text-red-600">{job.failureStage}</p>
+                                {job.failureReason ? <p className="mt-1 text-slate-600">{job.failureReason}</p> : null}
+                              </>
+                            ) : null}
+                          </div>
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-slate-500">{new Date(job.startedAt).toLocaleString()}</td>
