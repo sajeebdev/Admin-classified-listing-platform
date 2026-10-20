@@ -15,6 +15,7 @@ import { LocationsPage } from "./pages/LocationsPage";
 import { LoginPage } from "./pages/LoginPage";
 import { NavLinksPage } from "./pages/NavLinksPage";
 import { ReportsPage } from "./pages/ReportsPage";
+import { ScraperPage } from "./pages/ScraperPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { UsersPage } from "./pages/UsersPage";
 
@@ -59,6 +60,14 @@ function App() {
           element={
             <ProtectedRoute roles={SETTINGS_ROLES}>
               <ImportsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/scraper"
+          element={
+            <ProtectedRoute roles={SETTINGS_ROLES}>
+              <ScraperPage />
             </ProtectedRoute>
           }
         />

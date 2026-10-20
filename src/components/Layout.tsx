@@ -34,6 +34,7 @@ function AdminBrand() {
 // `SETTINGS_ROLES`) — kept out of the shared list above so a MODERATOR never
 // sees a link that only leads to an "Access denied" page.
 const importsNavItem = { to: "/imports", label: "Imports", end: false };
+const scraperNavItem = { to: "/scraper", label: "Scraper", end: false };
 const settingsNavItem = { to: "/settings", label: "Settings", end: false };
 
 export function Layout() {
@@ -42,7 +43,7 @@ export function Layout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const visibleNavItems =
     user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN
-      ? [...navItems, importsNavItem, settingsNavItem]
+      ? [...navItems, importsNavItem, scraperNavItem, settingsNavItem]
       : navItems;
 
   async function handleLogout() {
