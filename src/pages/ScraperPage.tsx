@@ -511,7 +511,7 @@ function UploadBar({
   return (
     <div className="space-y-2 rounded-md border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs text-slate-600">
-        Choose the category and country. The city (and its state) is taken from each ad automatically. Ads are published immediately.
+        Choose the category and country. Each ad's city is matched against the platform's city list: a match is published immediately, an ad whose city is not on the list is not uploaded and appears in the Failed tab, where you can fix the city and retry or remove it.
       </p>
       <div className="grid gap-2 sm:grid-cols-3">
         {select("Category", categoryId, setCategoryId, categories)}
